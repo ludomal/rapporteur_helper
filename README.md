@@ -1,4 +1,4 @@
-# ITU-T Rapporteur status report generator
+# ITU-T Rapporteur's status report generator
 
 This project generates pre-populated status report for Rapporteurs in Study Group 12.
 
