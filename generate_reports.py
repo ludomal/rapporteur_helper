@@ -1,5 +1,6 @@
 from docx import Document
 import docx
+import copy
 
 from lxml import html, etree
 import requests
@@ -8,7 +9,7 @@ import re
 import traceback
 
 # questions = range(1, 21)
-questions = [7]
+questions = [20]
 meetingDate = "220607"
 # meetingDate = "230118"
 
@@ -145,18 +146,54 @@ def get_questions_details():
     # Find and parse all rows (<tr>) in the document
     rows = tree.xpath('//tr')
 
-
+    currentQuestion = -1
     for row in rows:
+        # Extract WP number and Question title
         try:
-            columns = row.xpath('.//td')
-            # This should be three elements
-            tmp = columns[0].xpath('.//span/text()')
-            res = re.search(r'Q(\d+)/12.*WP(\d+)/12', tmp[0])
-            qNum = res.group(1)
-            wpNum = res.group(2)
-            info[int(qNum)] = dict(wp = wpNum, title = tmp[2])
-            # print(info[qNum])
-        except:
+            # Question number and WP
+            tmp = row.xpath(".//span[contains(@id,'lblQWP')]/text()")[0]
+
+            try:
+                res = re.search(r'Q(\d+)/12.*WP(\d+)/12', tmp)
+                qNum = int(res.group(1))
+                wpNum = int(res.group(2))
+            except:
+                # If it fails, check that it is because there is no WP number
+                res = re.search(r'Q(\d+)/12.*PLEN', tmp)
+                qNum = int(res.group(1))
+                wpNum = -1
+
+            # Question title
+            qTitle = row.xpath(".//span[contains(@id,'lblQuestion')]/text()")[0]
+
+            if qNum not in info:
+                info[qNum] = dict(rapporteurs = [])
+
+            info[qNum].update(dict(wp = wpNum, title = qTitle))
+
+            currentQuestion = qNum
+
+            print(info[qNum])
+        except Exception as e:
+            # print(e)
+            pass
+
+        # Extract Rapporteurs contact details
+        try:
+            tmp = {}
+            tmp['firstName'] = row.xpath(".//span[contains(@id,'dtlRappQues_lblFName')]/text()")[0]
+            tmp['lastName'] = row.xpath(".//span[contains(@id,'dtlRappQues_lblLName')]/text()")[0]
+            tmp['role'] = row.xpath(".//span[contains(@id,'dtlRappQues_lblRole')]/text()")[0]
+            tmp['company'] = row.xpath(".//span[contains(@id,'dtlRappQues_lblCompany')]/text()")[0]
+            tmp['address'] = ' '.join(row.xpath(".//span[contains(@id,'dtlRappQues_lblAddress')]/text()"))
+            tmp['country'] = row.xpath(".//span[contains(@id,'dtlRappQues_lblAddress')]/text()")[-1]
+            tmp['tel'] = row.xpath(".//span[contains(@id,'dtlRappQues_telLabel')]/text()")[0]
+            tmp['email'] = row.xpath(".//a[contains(@id,'dtlRappQues_linkemail')]/text()")[0].replace('[at]', '@')
+
+            info[currentQuestion]['rapporteurs'].append(tmp)
+        except Exception as e:
+            # traceback.print_exc()
+            # print(e)
             pass
 
     return info
@@ -186,7 +223,7 @@ def replace(find, replace):
                     foundInRun = False
                     for run in paragraph.runs:
                         if find in run.text:
-                            run.text = paragraph.text.replace(find, replace)
+                            run.text = run.text.replace(find, replace)
                             # print(f'run: {find}')
                             foundInRun = True
                     if foundInRun == False:
@@ -194,11 +231,83 @@ def replace(find, replace):
                             paragraph.text = paragraph.text.replace(find, replace)
                             # print(f'paragraph: {find}')
 
+def replace_in_table(table, find, replace):
+    for row in table.rows:
+        for cell in row.cells:
+            for paragraph in cell.paragraphs:
+                foundInRun = False
+                for run in paragraph.runs:
+                    if find in run.text:
+                        run.text = run.text.replace(find, replace)
+                        run.font.highlight_color = 0
+                        return
+                if foundInRun == False:
+                    if find in paragraph.text:
+                        paragraph.text = paragraph.text.replace(find, replace)
+                        return
 
+def insert_contacts(document, questionInfo):
+    numContacts = len(questionInfo['rapporteurs'])
+
+    # Fid the contact table
+    contactTable = None
+    for table in document.tables:
+        for idx, row in enumerate(table.rows):
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    if contactTable != None:
+                        break
+                    if paragraph.text == "Contact:":
+                        contactTable = table
+
+    # Add contacts row if necessary (there are two in the template)
+    for i in range(0, numContacts - 2, 1):
+        contactTable.rows[-1]._tr.addnext(copy.deepcopy(contactTable.rows[-1]._tr))
+
+    if numContacts == 1:
+        contactTable._tbl.remove(contactTable.rows[-1]._tr)
+
+    # Update the contact table
+    for contact in questionInfo['rapporteurs']:
+        replace_in_table(contactTable, "Name", f"{contact['firstName']} {contact['lastName']}")
+        replace_in_table(contactTable, "Organization", f"{contact['company']}")
+        replace_in_table(contactTable, "Country", f"{contact['country']}")
+        replace_in_table(contactTable, "Tel:\t+xx", f"Tel:\t{contact['tel']}")
+        replace_in_table(contactTable, "a@b.com", f"{contact['email']}")
+
+    # Format text for Section 1:
+    target = "the [co-] chairmanship of name of Rapporteur (organization, country) [with the assistance of name of associate Rapporteur (organization, country)]"
+
+    if numContacts == 1:
+        text = f"the chairmanship of {contact['firstName']} {contact['lastName']} ({contact['company']}, {contact['country']})"
+    else:
+        hasAssociate = False
+        for contact in questionInfo['rapporteurs']:
+            if "Associate" in contact['role']:
+                hasAssociate = True
+
+        if hasAssociate == False:
+            text = "the co-chairmanship of "
+            tmp = []
+            for contact in questionInfo['rapporteurs']:
+                tmp.append(f"{contact['firstName']} {contact['lastName']} ({contact['company']}, {contact['country']})")
+            text += " and ".join(tmp)
+        else:
+            text = "the chairmanship of "
+            for contact in questionInfo['rapporteurs']:
+                if "Rapporteur" in contact['role']:
+                    text += f"{contact['firstName']} {contact['lastName']} ({contact['company']}, {contact['country']})"
+
+            for contact in questionInfo['rapporteurs']:
+                if "Associate" in contact['role']:
+                    text += f" with the assistance of {contact['firstName']} {contact['lastName']} ({contact['company']}, {contact['country']})"
+
+    replace(target, text)
 
 if __name__ == '__main__':
     try:
         questionInfo = get_questions_details()
+        pprint(questionInfo)
     except Exception as e:
         print("Error - Cannot fetch question details from ITU-T website")
         raise(e)
@@ -214,6 +323,9 @@ if __name__ == '__main__':
 
             with open('template.docx', 'rb') as f:
                 document = Document(f)
+
+            # for style in document.styles:
+            #     print(f"{style.name} {style.type}")
 
             # Insert contributions
             endpoint = endpoints[0]
@@ -237,8 +349,11 @@ if __name__ == '__main__':
             replace('[title of question]', questionInfo[question]['title'])
             replace('Title of question', questionInfo[question]['title'])
 
+            # Insert contacts
+            insert_contacts(document, questionInfo[question])
 
             document.save(f'Q{question}_status_report.docx')
+
         except:
             traceback.print_stack()
             pprint(questionInfo)
