@@ -9,7 +9,7 @@ import re
 import traceback
 
 # questions = range(1, 21)
-questions = [20]
+questions = [1,2, 7, 14]
 meetingDate = "220607"
 # meetingDate = "230118"
 
@@ -132,16 +132,85 @@ def get_documents(docSection, endpoint):
             # traceback.print_exc()
             pass
 
+def get_html_tree(url):
+    try:
+        x = requests.get(url)
+        tree = html.fromstring(x.content)
+        return tree
+    except Exception as e:
+        print(url)
+        raise(e)
+
+def get_work_program(Q):
+    info = []
+    # url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?isn_sp=8265&isn_sg=8271&isn_qu=8335&isn_status=-1,1,3,7&details=1&field=ahjgoflki"
+    url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?sg=12&q={Q}&isn_sp=8265&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
+    tree = get_html_tree(url)
+
+    # Find and parse all rows (<tr>) in the document
+    rows = tree.xpath("//table[contains(@id, 'tab_tabular_view_gd_wp_tabular')]/tr")
+
+    for row in rows:
+        item = {}
+
+        try:
+            tds = row.xpath(".//td")
+
+            # 1st column - Work item
+            item['href'] = tds[0].xpath(".//a/@href")[0].strip()
+            item['work_item'] = tds[0].xpath(".//a/text()")[0]
+
+            # 2nd column - Version
+            item['version'] = tds[1].xpath(".//div/text()")[0]
+
+            # 3rd column - Title
+            item['title'] = tds[2].xpath(".//text()")[0]
+
+            # 4th column - Approval process
+            item['process'] = tds[3].xpath(".//div/text()")[0]
+
+            # 5th column -  Priority
+            item['priority'] = tds[4].xpath(".//div/text()")[0]
+
+            # 6th column -  Timing
+            item['timing'] = tds[5].xpath(".//div/nobr/text()")[0]
+
+            # 7th column -  Editors
+            try:
+                item['editors'] = []
+                for editor in tds[6].xpath(".//a"):
+                    tmp = {}
+                    tmp['href'] = editor.xpath(".//@href")[0].strip().replace('(AT)', '@')
+                    tmp['name'] = editor.xpath(".//nobr/text()")[0]
+                    item['editors'].append(tmp)
+            except:
+                pass
+
+            # 8th column - base document(s)
+            texts = tds[8].xpath(".//a")
+
+            item['basetext'] = []
+            for text in tds[7].xpath(".//a"):
+                tmp = {}
+                tmp['href'] = text.xpath(".//@href")[0].strip()
+                tmp['name'] = text.xpath(".//text()")[0]
+                item['basetext'].append(tmp)
+
+            # 9th column - Liaisons
+            item['relationship'] = [ x.strip() for x in tds[8].xpath(".//text()")[0].split(',')]
+
+            info.append(item)
+
+        except Exception as e:
+            pass
+
+    return info
+
 def get_questions_details():
     info = {}
 
     url="https://www.itu.int/net4/ITU-T/lists/loqr.aspx?Group=12&Period=17"
-    try:
-        x = requests.get(url)
-        tree = html.fromstring(x.content)
-    except Exception as e:
-        print(url)
-        raise(e)
+    tree = get_html_tree(url)
 
     # Find and parse all rows (<tr>) in the document
     rows = tree.xpath('//tr')
@@ -304,6 +373,35 @@ def insert_contacts(document, questionInfo):
 
     replace(target, text)
 
+def insert_work_program(document, info):
+    # Fid the work program table
+    targetTable = None
+
+    for table in document.tables:
+        for idx, row in enumerate(table.rows):
+            for cell in row.cells:
+                for paragraph in cell.paragraphs:
+                    if targetTable != None:
+                        break
+                    if paragraph.text == "Approval process":
+                        targetTable = table
+
+    for (idx, work_item) in enumerate(info):
+        # Duplicate row
+        if idx != len(info) -1:
+            targetTable.rows[-1]._tr.addnext(copy.deepcopy(targetTable.rows[-1]._tr))
+
+        replace_in_table(targetTable, 'WP_WorkItem', work_item['work_item'])
+        replace_in_table(targetTable, 'WP_Version', work_item['version'])
+        replace_in_table(targetTable, 'WP_Title', work_item['title'])
+        replace_in_table(targetTable, 'WP_Process', work_item['process'])
+        replace_in_table(targetTable, 'WP_Priority', work_item['priority'])
+        replace_in_table(targetTable, 'WP_Timing', work_item['timing'])
+        replace_in_table(targetTable, 'WP_Editors', ",\n".join([ x['name'] for x in work_item['editors']]))
+        replace_in_table(targetTable, 'WP_BaseTexts', ",\n".join([ x['name'] for x in work_item['basetext']]))
+        replace_in_table(targetTable, 'WP_Relationship', ",\n".join([ x for x in work_item['relationship']]))
+    pass
+
 if __name__ == '__main__':
     try:
         questionInfo = get_questions_details()
@@ -314,6 +412,7 @@ if __name__ == '__main__':
 
     for question in questions:
         print(f"Generating report for Q{question}")
+
         try:
             hostname = 'https://www.itu.int'
             endpoints = [
@@ -326,6 +425,7 @@ if __name__ == '__main__':
 
             # for style in document.styles:
             #     print(f"{style.name} {style.type}")
+
 
             # Insert contributions
             endpoint = endpoints[0]
@@ -351,6 +451,11 @@ if __name__ == '__main__':
 
             # Insert contacts
             insert_contacts(document, questionInfo[question])
+
+            # Insert workprogram
+            workProgram = get_work_program(question)
+            pprint(workProgram)
+            insert_work_program(document, workProgram)
 
             document.save(f'Q{question}_status_report.docx')
 
