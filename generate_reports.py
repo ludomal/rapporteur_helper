@@ -256,7 +256,11 @@ def get_questions_details():
             tmp['company'] = row.xpath(".//span[contains(@id,'dtlRappQues_lblCompany')]/text()")[0]
             tmp['address'] = ' '.join(row.xpath(".//span[contains(@id,'dtlRappQues_lblAddress')]/text()"))
             tmp['country'] = row.xpath(".//span[contains(@id,'dtlRappQues_lblAddress')]/text()")[-1]
-            tmp['tel'] = row.xpath(".//span[contains(@id,'dtlRappQues_telLabel')]/text()")[0]
+            try:
+                # Some Rapporteurs do not have a telephone number available
+                tmp['tel'] = row.xpath(".//span[contains(@id,'dtlRappQues_telLabel')]/text()")[0]
+            except:
+                pass
             tmp['email'] = row.xpath(".//a[contains(@id,'dtlRappQues_linkemail')]/text()")[0].replace('[at]', '@')
 
             info[currentQuestion]['rapporteurs'].append(tmp)
@@ -345,7 +349,10 @@ def insert_contacts(document, questionInfo):
         replace_in_table(contactTable, "Name", f"{contact['firstName']} {contact['lastName']}")
         replace_in_table(contactTable, "Organization", f"{contact['company']}")
         replace_in_table(contactTable, "Country", f"{contact['country']}")
-        replace_in_table(contactTable, "Tel:\t+xx", f"Tel:\t{contact['tel']}")
+        if 'tel' in contact:
+            replace_in_table(contactTable, "Tel:\t+xx", f"Tel:\t{contact['tel']}")
+        else:
+            replace_in_table(contactTable, "Tel:\t+xx", "")
         replace_in_table(contactTable, "a@b.com", f"{contact['email']}")
 
     # Format text for Section 1:
