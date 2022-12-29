@@ -8,10 +8,10 @@ from pprint import pprint
 import re
 import traceback
 
-# questions = range(1, 21)
-questions = [1,2, 7, 14]
-meetingDate = "220607"
-# meetingDate = "230118"
+questions = range(1, 21)
+# questions = [1,2, 7, 14]
+# meetingDate = "220607"
+meetingDate = "230118"
 
 
 def add_hyperlink(paragraph, text, url, format = None):
@@ -303,17 +303,21 @@ def replace(find, replace):
 def replace_in_table(table, find, replace):
     for row in table.rows:
         for cell in row.cells:
+            for subtable in cell.tables:
+                if replace_in_table(subtable, find, replace):
+                    return True
             for paragraph in cell.paragraphs:
                 foundInRun = False
                 for run in paragraph.runs:
                     if find in run.text:
                         run.text = run.text.replace(find, replace)
                         run.font.highlight_color = 0
-                        return
+                        return True
                 if foundInRun == False:
                     if find in paragraph.text:
                         paragraph.text = paragraph.text.replace(find, replace)
-                        return
+                        return True
+    return False
 
 def insert_contacts(document, questionInfo):
     numContacts = len(questionInfo['rapporteurs'])
@@ -393,13 +397,14 @@ def insert_work_program(document, info):
 
         replace_in_table(targetTable, 'WP_WorkItem', work_item['work_item'])
         replace_in_table(targetTable, 'WP_Version', work_item['version'])
-        replace_in_table(targetTable, 'WP_Title', work_item['title'])
         replace_in_table(targetTable, 'WP_Process', work_item['process'])
         replace_in_table(targetTable, 'WP_Priority', work_item['priority'])
         replace_in_table(targetTable, 'WP_Timing', work_item['timing'])
-        replace_in_table(targetTable, 'WP_Editors', ",\n".join([ x['name'] for x in work_item['editors']]))
-        replace_in_table(targetTable, 'WP_BaseTexts', ",\n".join([ x['name'] for x in work_item['basetext']]))
         replace_in_table(targetTable, 'WP_Relationship', ",\n".join([ x for x in work_item['relationship']]))
+        replace_in_table(targetTable, 'WP_Title', work_item['title'])
+        replace_in_table(targetTable, 'WP_Editors', ",\n".join([ x['name'] for x in work_item['editors']]))
+        replace_in_table(targetTable, 'WP_BaseTexts', ", ".join([ x['name'] for x in work_item['basetext']]))
+
     pass
 
 if __name__ == '__main__':
@@ -462,4 +467,3 @@ if __name__ == '__main__':
         except:
             traceback.print_stack()
             pprint(questionInfo)
-            raise()
