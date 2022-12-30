@@ -2,6 +2,7 @@ from docx import Document
 import docx
 import copy
 
+import os
 from lxml import html, etree
 import requests
 from pprint import pprint
@@ -469,7 +470,12 @@ if __name__ == '__main__':
             pprint(workProgram)
             insert_work_program(document, workProgram)
 
-            document.save(f'Q{question}_status_report.docx')
+            try:
+                os.mkdir(f'./{meetingDate}')
+            except:
+                pass
+
+            document.save(f'./{meetingDate}/Q{question}_status_report.docx')
 
         except:
             traceback.print_stack()
