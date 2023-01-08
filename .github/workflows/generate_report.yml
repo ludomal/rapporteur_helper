@@ -29,14 +29,20 @@ jobs:
     - name: Chechout repository
       uses: actions/checkout@v3
       # this Action should follow steps to set up Python build environment
-      
+
     - name: Install Python dependencies
       uses: py-actions/py-dependency-install@v4
       with:
-        path: "requirements.txt"      
-    
+        path: "requirements.txt"
+
     - name: List workspace
       run: ls ${{ github.workspace }}
-      
+
     - name: Execute script
       run: python generate_reports.py
+
+    - name: Archive production artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: save-reports
+        path: **/*status_report.docx
