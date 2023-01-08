@@ -8,18 +8,18 @@ name: Generate report
 on:
   workflow_dispatch:
     # Inputs the workflow accepts.
-    inputs:
-      name:
-        # Friendly description to be shown in the UI instead of 'name'
-        description: 'Generate report'
-        # Default value if no value is explicitly provided
-        default: '7'
-        # Input has to be provided for the workflow to run
-        required: true
+#     inputs:
+#       name:
+#         # Friendly description to be shown in the UI instead of 'name'
+#         description: 'Generate reports'
+#         # Default value if no value is explicitly provided
+#         default: '7'
+#         # Input has to be provided for the workflow to run
+#         required: true
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  generate_report:
+  generate_reports:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
 
@@ -44,5 +44,5 @@ jobs:
     - name: Archive production artifacts
       uses: actions/upload-artifact@v3
       with:
-        name: save-reports
+        name: saved_reports
         path: "**/*status_report.docx"
