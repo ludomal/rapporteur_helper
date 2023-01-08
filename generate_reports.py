@@ -12,21 +12,20 @@ import traceback
 questions = range(1, 21)
 # questions = [1,2, 7, 14]
 # meetingDate = "220607"
+studyGroup = 12
+meetingDetails = "Geneva, 18-26 January 2023"
 meetingDate = "230118"
 
 
-def add_hyperlink(paragraph, text, url, format = None):
-    # :param paragraph: The paragraph we are adding the hyperlink to.
-    # :param url: A string containing the required url
-    # :param text: The text displayed for the url
-    #     :return: The hyperlink object
-
-    # This gets access to the document.xml.rels file and gets a new relation id value
-    part = paragraph.part
-    r_id = part.relate_to(url, docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
-
+def create_hyperlink(document, text, url, format = ['None', 'bold', 'italic', 'hyperlink', 'button'][0]):
     # Create the w:hyperlink tag and add needed values
     hyperlink = docx.oxml.shared.OxmlElement('w:hyperlink')
+
+    # Access to the document settings (DocumentPart) to create a new relation id value
+    documentPart = document.part
+    r_id = documentPart.relate_to(url, docx.opc.constants.RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
+
+    # Attach the relation ID to the hyperlink object
     hyperlink.set(docx.oxml.shared.qn('r:id'), r_id, )
 
     # Create a w:r element
@@ -42,15 +41,54 @@ def add_hyperlink(paragraph, text, url, format = None):
         rStyle = docx.oxml.shared.OxmlElement('w:b')
         rPr.append(rStyle)
 
+    if format == 'hyperlink':
+        rStyle = docx.oxml.shared.OxmlElement('w:rStyle')
+        rStyle.set(docx.oxml.shared.qn('w:val'), 'Hyperlink')
+        rPr.append(rStyle)
+
     # Join all the xml elements together and add the required text to the w:r element
     new_run.append(rPr)
-    new_run.text = text
+    new_run.text = f"{text}"
 
     hyperlink.append(new_run)
 
+    if format == 'button':
+        # Create a link button with the Hyperlink style, prettier than coloring the whole text
+        new_run = docx.oxml.shared.OxmlElement('w:r')
+        new_run.text = "  "
+        hyperlink.append(new_run)
+
+        new_run = docx.oxml.shared.OxmlElement('w:r')
+        # Unicode character for "download"
+        # https://www.fileformat.info/info/unicode/char/2913/fontsupport.htm
+
+        rStyle = docx.oxml.shared.OxmlElement('w:rStyle')
+        rStyle.set(docx.oxml.shared.qn('w:val'), 'Hyperlink')
+        rPr = docx.oxml.shared.OxmlElement('w:rPr')
+        rPr.append(rStyle)
+        new_run.append(rPr)
+
+        new_run.text = '\u2913'
+
+        hyperlink.append(new_run)
+
+    return hyperlink
+
+def add_hyperlink(paragraph, text, url, format = ['None', 'bold', 'italic', 'hyperlink', 'button'][0]):
+    # :param paragraph: The paragraph we are adding the hyperlink to.
+    # :param text: The text displayed for the url
+    # :param url: A string containing the required url
+    # :param format: Style to apply to the text ['None', 'bold','italic']
+    #     :return: The hyperlink object
+
+    # Create hyperlink
+    hyperlink = create_hyperlink(paragraph, text, url, format)
+
+    # Append hyperlink to paragraph
     paragraph._p.append(hyperlink)
 
     return hyperlink
+
 
 def insert_paragraph_after(paragraph, text=None, style=None):
     """Insert a new paragraph after the given paragraph."""
@@ -63,13 +101,18 @@ def insert_paragraph_after(paragraph, text=None, style=None):
         new_para.style = style
     return new_para
 
-def get_documents(docSection, endpoint):
-    print(f"Retrieving documents from: {endpoint['url']}")
-    x = requests.get(endpoint['url'])
-    tree = html.fromstring(x.content)
+def insert_documents(docSection, endpoints):
+    if not isinstance(endpoints, list):
+        endpoints = [endpoints]
 
-    # Find and parse all rows (<tr>) in the document
-    rows = tree.xpath('//tr')
+    rows = []
+    for endpoint in endpoints:
+        print(f"Retrieving documents from: {endpoint['url']}")
+        x = requests.get(endpoint['url'])
+        tree = html.fromstring(x.content)
+
+        # Find and parse all rows (<tr>) in the document
+        rows += tree.xpath('//tr')
 
     docSection.text = ""
 
@@ -105,28 +148,30 @@ def get_documents(docSection, endpoint):
             questions = columns[4].xpath('.//a')
             q = []
             for quest in questions:
-                q.append(dict(link = f'{hostname}/{quest.attrib["href"]}', text = quest.text.strip().replace('/12', '')))
+                q.append(dict(link = f'{hostname}/{quest.attrib["href"]}', text = quest.text.strip().replace(f'/{studyGroup}', '')))
 
             # Generate word document block for this document
             # p = document.add_paragraph()
             p = docSection.insert_paragraph_before()
 
-            add_hyperlink(p, f"{number} - {title}", link, 'bold')
+            tmpNumber = number.replace('-GEN', '')
+            add_hyperlink(p, f"{tmpNumber} - {title}", link, format = 'bold')
 
             p.add_run('\nSources: ')
             for item in src:
-                add_hyperlink(p, item['text'], item['link'])
+                add_hyperlink(p, item['text'], item['link'], format='hyperlink')
                 if src[-1] != item:
                     p.add_run(' | ')
 
             p.add_run('\nQuestions: ')
             for item in q:
-                add_hyperlink(p, item['text'], item['link'])
+                add_hyperlink(p, item['text'], item['link'], format='hyperlink')
                 if q[-1] != item:
                     p.add_run(', ')
 
-            p.add_run('\nSummary:\n')
-
+            # Do not include a summary section for documents addressed to Q.ALL
+            if q[0]['link'].find('QALL') < 0:
+                p.add_run('\nSummary:\n')
 
         except Exception as e:
             # print(e)
@@ -145,7 +190,7 @@ def get_html_tree(url):
 def get_work_program(Q):
     info = []
     # url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?isn_sp=8265&isn_sg=8271&isn_qu=8335&isn_status=-1,1,3,7&details=1&field=ahjgoflki"
-    url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?sg=12&q={Q}&isn_sp=8265&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
+    url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?sg={studyGroup}&q={Q}&isn_sp=8265&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
     tree = get_html_tree(url)
 
     # Find and parse all rows (<tr>) in the document
@@ -210,7 +255,7 @@ def get_work_program(Q):
 def get_questions_details():
     info = {}
 
-    url="https://www.itu.int/net4/ITU-T/lists/loqr.aspx?Group=12&Period=17"
+    url=f"https://www.itu.int/net4/ITU-T/lists/loqr.aspx?Group={studyGroup}&Period=17"
     tree = get_html_tree(url)
 
     # Find and parse all rows (<tr>) in the document
@@ -224,12 +269,12 @@ def get_questions_details():
             tmp = row.xpath(".//span[contains(@id,'lblQWP')]/text()")[0]
 
             try:
-                res = re.search(r'Q(\d+)/12.*WP(\d+)/12', tmp)
+                res = re.search(fr'Q(\d+)/{studyGroup}.*WP(\d+)/{studyGroup}', tmp)
                 qNum = int(res.group(1))
                 wpNum = int(res.group(2))
             except:
                 # If it fails, check that it is because there is no WP number
-                res = re.search(r'Q(\d+)/12.*PLEN', tmp)
+                res = re.search(fr'Q(\d+)/{studyGroup}.*PLEN', tmp)
                 qNum = int(res.group(1))
                 wpNum = -1
 
@@ -305,6 +350,7 @@ def replace(find, replace):
                             paragraph.text = paragraph.text.replace(find, replace)
                             # print(f'paragraph: {find}')
 
+
 def replace_in_table(table, find, replace):
     for row in table.rows:
         for cell in row.cells:
@@ -315,12 +361,22 @@ def replace_in_table(table, find, replace):
                 foundInRun = False
                 for run in paragraph.runs:
                     if find in run.text:
-                        run.text = run.text.replace(find, replace)
-                        run.font.highlight_color = 0
+                        if isinstance(replace, str):
+                            run.text = run.text.replace(find, replace)
+                            run.font.highlight_color = 0
+                        else:
+                            run.text = ''
+                            paragraph._p.append(replace)
                         return True
+
                 if foundInRun == False:
                     if find in paragraph.text:
-                        paragraph.text = paragraph.text.replace(find, replace)
+                        if isinstance(replace, str):
+                            paragraph.text = paragraph.text.replace(find, replace)
+                        else:
+                            pass
+                            paragraph._p.addnext(replace)
+
                         return True
     return False
 
@@ -403,7 +459,8 @@ def insert_work_program(document, info):
         if idx != len(info) -1:
             targetTable.rows[-1]._tr.addnext(copy.deepcopy(targetTable.rows[-1]._tr))
 
-        replace_in_table(targetTable, 'WP_WorkItem', work_item['work_item'])
+        new_h = create_hyperlink(targetTable, work_item['work_item'], work_item['href'], format='hyperlink')
+        replace_in_table(targetTable, 'WP_WorkItem', new_h)
         replace_in_table(targetTable, 'WP_Version', work_item['version'])
         replace_in_table(targetTable, 'WP_Process', work_item['process'])
         replace_in_table(targetTable, 'WP_Priority', work_item['priority'])
@@ -411,7 +468,17 @@ def insert_work_program(document, info):
         replace_in_table(targetTable, 'WP_Relationship', ",\n".join([ x for x in work_item['relationship']]))
         replace_in_table(targetTable, 'WP_Title', work_item['title'])
         replace_in_table(targetTable, 'WP_Editors', ",\n".join([ x['name'] for x in work_item['editors']]))
-        replace_in_table(targetTable, 'WP_BaseTexts', ", ".join([ x['name'] for x in work_item['basetext']]))
+
+        # Generate base texts with links
+        newRun = docx.oxml.shared.OxmlElement('w:r')
+        for idx,x in enumerate(work_item['basetext']):
+            if idx > 0:
+                tmp = docx.oxml.shared.OxmlElement('w:r')
+                tmp.text = ", "
+                newRun.append(tmp)
+            newRun.append(create_hyperlink(document, x['name'],  x['href'], format='hyperlink'))
+
+        replace_in_table(targetTable, 'WP_BaseTexts', newRun)
 
     pass
 
@@ -429,8 +496,10 @@ if __name__ == '__main__':
         try:
             hostname = 'https://www.itu.int'
             endpoints = [
-                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG12-{meetingDate}-C&question=Q{question}/12', prefix='C-', title='Contributions'),
-                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG12-{meetingDate}-TD&question=Q{question}/12', prefix='TD-', title='Temporary Documents'),
+                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG{studyGroup}-{meetingDate}-C&question=QALL/{studyGroup}', prefix=f'SG{studyGroup}-C', title='Contributions'),
+                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG{studyGroup}-{meetingDate}-C&question=Q{question}/{studyGroup}', prefix=f'SG{studyGroup}-C', title='Contributions'),
+                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG{studyGroup}-{meetingDate}-TD&question=QALL/{studyGroup}', prefix=f'SG{studyGroup}-TD', title='Temporary Documents'),
+                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG{studyGroup}-{meetingDate}-TD&question=Q{question}/{studyGroup}', prefix=f'SG{studyGroup}-TD', title='Temporary Documents'),
             ]
 
             with open('template.docx', 'rb') as f:
@@ -439,24 +508,30 @@ if __name__ == '__main__':
             # for style in document.styles:
             #     print(f"{style.name} {style.type}")
 
+            # Meeting date
+            replace('[place, dates]', meetingDetails)
+
+            # Abstract
+            abstract = f"This document contains the Status report of Question {question}/{studyGroup}: {questionInfo[question]['title']} for the meeting in {meetingDetails}."
+            replace('[Insert an abstract]', abstract)
 
             # Insert contributions
             endpoint = endpoints[0]
             docSection = find_element(document, 'Copy table of contributions')
-            get_documents(docSection, endpoint)
+            insert_documents(docSection, [endpoints[0],endpoints[1]])
+
 
             # Insert temporary documents
-            endpoint = endpoints[1]
+            print("  Inserting temporary documents")
             docSection = find_element(document, 'Copy the TD table')
-            get_documents(docSection, endpoint)
+            insert_documents(docSection, [endpoints[2],endpoints[3]])
 
             # Replace question number
-            replace('X/12', f'{question}/12')
-            replace('x/12', f'{question}/12')
-            replace('t22sg12qX@lists.itu.int', f't22sg12q{question}@lists.itu.int')
+            replace(f'X/{studyGroup}', f'{question}/{studyGroup}')
+            replace(f't22sg{studyGroup}qX@lists.itu.int', f't22sg{studyGroup}q{question}@lists.itu.int')
 
             # Replace working party number
-            replace('Working Party y/12', f"Working Party {questionInfo[question]['wp']}/12")
+            replace(f'Working Party y/{studyGroup}', f"Working Party {questionInfo[question]['wp']}/{studyGroup}")
 
             # Replace question title
             replace('[title of question]', questionInfo[question]['title'])
@@ -465,7 +540,7 @@ if __name__ == '__main__':
             # Insert contacts
             insert_contacts(document, questionInfo[question])
 
-            # Insert workprogram
+            # Insert work programme
             workProgram = get_work_program(question)
             pprint(workProgram)
             insert_work_program(document, workProgram)
@@ -477,6 +552,7 @@ if __name__ == '__main__':
 
             document.save(f'./{meetingDate}/Q{question}_status_report.docx')
 
-        except:
+        except Exception as e:
+            pprint(e)
             traceback.print_stack()
-            pprint(questionInfo)
+            # pprint(questionInfo)
