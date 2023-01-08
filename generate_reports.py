@@ -173,6 +173,8 @@ def insert_documents(docSection, endpoints):
             if q[0]['link'].find('QALL') < 0:
                 p.add_run('\nSummary:\n')
 
+            p.add_run('\n')
+
         except Exception as e:
             # print(e)
             # traceback.print_exc()

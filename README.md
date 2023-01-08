@@ -11,13 +11,20 @@ Information fetched from the ITU-T website are:
 - List of TDs
 - Work programme
 
-## How to use
 
-1. Set `meetingDate` in `generate_reports.py` to the desired meeting. The format is `YYMMDD`. For example, for the meeting starting January 18, 2023:
+## How to use 
+
+1. Install required packages
 ```
-  meetingDate = "230118"
+pip install -r requirements.txt
 ```
-  
+
+2. Update meeting information in `generate_reports.py`:
+
+* `meetingDetails`: place and date, example: `"Geneva, 18-26 January 2023"`
+
+*  `meetingDate`: first day of the meeting in the format `YYMMDD`. For example, for the meeting starting January 18, 2023: `"230118"`
+
 2. Execute the script
 
 ```
