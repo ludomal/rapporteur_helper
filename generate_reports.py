@@ -13,8 +13,8 @@ questions = range(1, 21)
 # questions = [1,2, 7, 14]
 # meetingDate = "220607"
 studyGroup = 12
-meetingDetails = "Geneva, 18-26 January 2023"
-meetingDate = "230118"
+meetingDetails = "Mexico City, 19-28 September 2023"
+meetingDate = "230919"
 
 
 def create_hyperlink(document, text, url, format = ['None', 'bold', 'italic', 'hyperlink', 'button'][0]):
@@ -127,7 +127,13 @@ def insert_documents(docSection, endpoints):
 
             # Link and document number should be in the second column
             link = hostname + '/' + columns[1].xpath('.//a')[0].attrib['href'].strip()
-            number = columns[1].xpath('.//a/strong/text()')[0].strip().replace('[ ', endpoint['prefix']).replace(' ]', '')
+
+            try:
+                number = columns[1].xpath('.//a/strong/text()')[0].strip().replace('[ ', endpoint['prefix']).replace(' ]', '')
+            except:
+                # Handle case where documents have not yet been uploaded
+                number = columns[1].xpath('.//a/text()')[0].strip().replace('[ ', endpoint['prefix']).replace(' ]', '')
+
             try:
                 revision = columns[1].xpath('.//font/text()')[0]
                 x = re.search(r"([\d]+)\)", revision)
