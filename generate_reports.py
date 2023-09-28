@@ -9,6 +9,8 @@ from pprint import pprint
 import re
 import traceback
 
+verbose = True
+
 questions = range(1, 21)
 # questions = [1,2, 7, 14]
 # meetingDate = "220607"
@@ -107,7 +109,8 @@ def insert_documents(docSection, endpoints):
 
     rows = []
     for endpoint in endpoints:
-        print(f"Retrieving documents from: {endpoint['url']}")
+        if verbose:
+            print(f"  Retrieving documents from: {endpoint['url']}")
         x = requests.get(endpoint['url'])
         tree = html.fromstring(x.content)
 
@@ -196,13 +199,29 @@ def get_html_tree(url):
         raise(e)
 
 def get_work_program(Q):
+    useISN = False
+    if useISN:
+        # Preparing for the day the ITU-T API is being updated to only allow ISNs
+        sgIndex = {12: 8271}
+        qIndex = { 1: 8330, 2: 8331, 4: 8332, 5: 8333, 6: 8334, 7: 8335, 9: 8336,
+                   10: 8337, 12: 8338, 13: 8339, 14: 8340, 15: 8341, 17: 8342,
+                   19: 8343, 20: 8344 }
+        url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?isn_sg={sgIndex[studyGroup]}&qIndex={qIndex[Q]}&isn_sp=8265&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
+    else:
+        url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?sg={studyGroup}&q={Q}&isn_sp=8265&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
+
     info = []
-    # url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?isn_sp=8265&isn_sg=8271&isn_qu=8335&isn_status=-1,1,3,7&details=1&field=ahjgoflki"
-    url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?sg={studyGroup}&q={Q}&isn_sp=8265&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
+
+    if verbose:
+        print(f'  Fetching work program from: {url}')
     tree = get_html_tree(url)
 
     # Find and parse all rows (<tr>) in the document
     rows = tree.xpath("//table[contains(@id, 'tab_tabular_view_gd_wp_tabular')]/tr")
+
+    if not len(rows) >= 1:
+        print("Error fetching work program - Please check query response")
+        raise()
 
     for row in rows:
         item = {}
@@ -235,9 +254,10 @@ def get_work_program(Q):
                 for editor in tds[6].xpath(".//a"):
                     tmp = {}
                     tmp['href'] = editor.xpath(".//@href")[0].strip().replace('(AT)', '@')
-                    tmp['name'] = editor.xpath(".//nobr/text()")[0]
+                    tmp['name'] = editor.xpath("./text()")[0]
                     item['editors'].append(tmp)
             except:
+                print('!!! Cannot retrieve editors')
                 pass
 
             # 8th column - base document(s)
@@ -296,7 +316,7 @@ def get_questions_details():
 
             currentQuestion = qNum
 
-            print(info[qNum])
+            # print(info[qNum])
         except Exception as e:
             # print(e)
             pass
@@ -493,13 +513,13 @@ def insert_work_program(document, info):
 if __name__ == '__main__':
     try:
         questionInfo = get_questions_details()
-        pprint(questionInfo)
+        # pprint(questionInfo)
     except Exception as e:
         print("Error - Cannot fetch question details from ITU-T website")
         raise(e)
 
     for question in questions:
-        print(f"Generating report for Q{question}")
+        print(f"\n### Generating report for Q{question}")
 
         try:
             hostname = 'https://www.itu.int'
@@ -530,7 +550,7 @@ if __name__ == '__main__':
 
 
             # Insert temporary documents
-            print("  Inserting temporary documents")
+            # print("  Inserting temporary documents")
             docSection = find_element(document, 'Copy the TD table')
             insert_documents(docSection, [endpoints[2],endpoints[3]])
 
@@ -550,7 +570,7 @@ if __name__ == '__main__':
 
             # Insert work programme
             workProgram = get_work_program(question)
-            pprint(workProgram)
+            # pprint(workProgram)
             insert_work_program(document, workProgram)
 
             try:
