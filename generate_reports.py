@@ -14,10 +14,16 @@ verbose = True
 questions = range(1, 21)
 # questions = [1,2, 7, 14]
 # meetingDate = "220607"
-studyGroup = 12
-meetingDetails = "Mexico City, 19-28 September 2023"
-meetingDate = "230919"
 
+# Update these parameters for each meeting
+studyGroup = 12
+meetingDetails = "Geneva, 14-23 January 2025"
+meetingDate = "250114"
+
+# Update these parameters to the current study period 
+studyPeriodId = 18
+studyPeriodStart = 25
+isn_sp = 9677
 
 def create_hyperlink(document, text, url, format = ['None', 'bold', 'italic', 'hyperlink', 'button'][0]):
     # Create the w:hyperlink tag and add needed values
@@ -200,15 +206,17 @@ def get_html_tree(url):
 
 def get_work_program(Q):
     useISN = False
+
     if useISN:
         # Preparing for the day the ITU-T API is being updated to only allow ISNs
-        sgIndex = {12: 8271}
-        qIndex = { 1: 8330, 2: 8331, 4: 8332, 5: 8333, 6: 8334, 7: 8335, 9: 8336,
-                   10: 8337, 12: 8338, 13: 8339, 14: 8340, 15: 8341, 17: 8342,
-                   19: 8343, 20: 8344 }
-        url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?isn_sg={sgIndex[studyGroup]}&qIndex={qIndex[Q]}&isn_sp=8265&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
+        sgIndex = {12: 9683}
+        qIndex = { 1: 10694, 2: 10695, 4: 10696, 5: 10697, 6: 10698, 7: 10699, 9: 10700,
+                   10: 10701, 12: 10702, 13: 10703, 14: 10704, 15: 10705, 17: 10706,
+                   19: 10707, 20: 10708 }
+
+        url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?isn_sg={sgIndex[studyGroup]}&qIndex={qIndex[Q]}&isn_sp={isn_sp}&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
     else:
-        url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?sg={studyGroup}&q={Q}&isn_sp=8265&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
+        url = f"https://www.itu.int/ITU-T/workprog/wp_search.aspx?sg={studyGroup}&q={Q}&isn_sp={isn_sp}&isn_status=-1,1,3,7&details=1&view=tab&field=ahjgoflki"
 
     info = []
 
@@ -282,8 +290,8 @@ def get_work_program(Q):
 
 def get_questions_details():
     info = {}
+    url=f"https://www.itu.int/net4/ITU-T/lists/loqr.aspx?Group={studyGroup}&Period={studyPeriodId}"
 
-    url=f"https://www.itu.int/net4/ITU-T/lists/loqr.aspx?Group={studyGroup}&Period=17"
     tree = get_html_tree(url)
 
     # Find and parse all rows (<tr>) in the document
@@ -302,7 +310,7 @@ def get_questions_details():
                 wpNum = int(res.group(2))
             except:
                 # If it fails, check that it is because there is no WP number
-                res = re.search(fr'Q(\d+)/{studyGroup}.*PLEN', tmp)
+                res = re.search(fr'Q(\d+)/{studyGroup}.*', tmp)
                 qNum = int(res.group(1))
                 wpNum = -1
 
@@ -330,18 +338,22 @@ def get_questions_details():
             tmp['company'] = row.xpath(".//span[contains(@id,'dtlRappQues_lblCompany')]/text()")[0]
             tmp['address'] = ' '.join(row.xpath(".//span[contains(@id,'dtlRappQues_lblAddress')]/text()"))
             tmp['country'] = row.xpath(".//span[contains(@id,'dtlRappQues_lblAddress')]/text()")[-1]
+            
             try:
                 # Some Rapporteurs do not have a telephone number available
                 tmp['tel'] = row.xpath(".//span[contains(@id,'dtlRappQues_telLabel')]/text()")[0]
             except:
                 pass
             tmp['email'] = row.xpath(".//a[contains(@id,'dtlRappQues_linkemail')]/text()")[0].replace('[at]', '@')
-
+            
             info[currentQuestion]['rapporteurs'].append(tmp)
         except Exception as e:
             # traceback.print_exc()
             # print(e)
             pass
+    
+    if len(info) < 1:
+        raise(Exception(f'get_questions_details - Could not parse question details from {url}'))
 
     return info
 
@@ -524,11 +536,12 @@ if __name__ == '__main__':
         try:
             hostname = 'https://www.itu.int'
             endpoints = [
-                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG{studyGroup}-{meetingDate}-C&question=QALL/{studyGroup}', prefix=f'SG{studyGroup}-C', title='Contributions'),
-                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG{studyGroup}-{meetingDate}-C&question=Q{question}/{studyGroup}', prefix=f'SG{studyGroup}-C', title='Contributions'),
-                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG{studyGroup}-{meetingDate}-TD&question=QALL/{studyGroup}', prefix=f'SG{studyGroup}-TD', title='Temporary Documents'),
-                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T22-SG{studyGroup}-{meetingDate}-TD&question=Q{question}/{studyGroup}', prefix=f'SG{studyGroup}-TD', title='Temporary Documents'),
+                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T{studyPeriodStart}-SG{studyGroup}-{meetingDate}-C&question=QALL/{studyGroup}', prefix=f'SG{studyGroup}-C', title='Contributions'),
+                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T{studyPeriodStart}-SG{studyGroup}-{meetingDate}-C&question=Q{question}/{studyGroup}', prefix=f'SG{studyGroup}-C', title='Contributions'),
+                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T{studyPeriodStart}-SG{studyGroup}-{meetingDate}-TD&question=QALL/{studyGroup}', prefix=f'SG{studyGroup}-TD', title='Temporary Documents'),
+                dict(url = f'{hostname}/md/meetingdoc.asp?lang=en&parent=T{studyPeriodStart}-SG{studyGroup}-{meetingDate}-TD&question=Q{question}/{studyGroup}', prefix=f'SG{studyGroup}-TD', title='Temporary Documents'),
             ]
+            # pprint(endpoints)
 
             with open('template.docx', 'rb') as f:
                 document = Document(f)
@@ -548,7 +561,6 @@ if __name__ == '__main__':
             docSection = find_element(document, 'Copy table of contributions')
             insert_documents(docSection, [endpoints[0],endpoints[1]])
 
-
             # Insert temporary documents
             # print("  Inserting temporary documents")
             docSection = find_element(document, 'Copy the TD table')
@@ -556,7 +568,7 @@ if __name__ == '__main__':
 
             # Replace question number
             replace(f'X/{studyGroup}', f'{question}/{studyGroup}')
-            replace(f't22sg{studyGroup}qX@lists.itu.int', f't22sg{studyGroup}q{question}@lists.itu.int')
+            replace(f't{studyPeriodStart}sg{studyGroup}qX@lists.itu.int', f't{studyPeriodStart}sg{studyGroup}q{question}@lists.itu.int')
 
             # Replace working party number
             replace(f'Working Party y/{studyGroup}', f"Working Party {questionInfo[question]['wp']}/{studyGroup}")
