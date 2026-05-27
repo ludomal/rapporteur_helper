@@ -162,7 +162,3 @@ if __name__ == "__main__":
         verbose=verbose,
     )
 
-
-if __name__ == "__main__":
-    pass
-# end of file
