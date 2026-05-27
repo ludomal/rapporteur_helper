@@ -12,9 +12,6 @@ logger = logging.getLogger(__name__)
 
 
 def get_work_program(Q, verbose: bool = False, studyGroup: int = 12, isn_sp: int | None = None):
-    isn_sp = False
-    # isn_sp = 9677
-
     if isn_sp:
         # Preparing for the day the ITU-T API is being updated to only allow ISNs
         sgIndex = {12: 9683}
