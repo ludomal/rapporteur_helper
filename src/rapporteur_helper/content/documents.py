@@ -63,13 +63,13 @@ def insert_documents(docSection: Paragraph, endpoints: list | Any, verbose: bool
             sources = columns[3].xpath(".//a")
             src = []
             for source in sources:
-                src.append(dict(link=f"{hostname}/{source.attrib['href']}", text=source.text.strip()))
+                src.append({"link": f"{hostname}/{source.attrib['href']}", "text": source.text.strip()})
 
             # Relevant questions should be in fourth column
             questions = columns[4].xpath(".//a")
             q = []
             for quest in questions:
-                q.append(dict(link=f"{hostname}/{quest.attrib['href']}", text=quest.text.strip().replace(f"/{studyGroup}", "")))
+                q.append({"link": f"{hostname}/{quest.attrib['href']}", "text": quest.text.strip().replace(f"/{studyGroup}", "")})
 
             # Generate word document block for this document
             # p = document.add_paragraph()

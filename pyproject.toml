@@ -97,6 +97,18 @@ ignore = [
     "E501",
     # DoNotAssignLambda
     "E731",
+    # Too complex
+    "C901",
+    # Long exception messages
+    "TRY003",
+    # Redundant exception in logging.exception
+    "TRY401",
+    # Shadowing builtins in function args
+    "A002",
+    # try-except-pass
+    "S110",
+    # Unused loop variable
+    "B007",
 ]
 
 [tool.ruff.lint.per-file-ignores]

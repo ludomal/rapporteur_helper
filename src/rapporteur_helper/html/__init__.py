@@ -10,7 +10,7 @@ def get_html_tree(url):
     try:
         x = requests.get(url, timeout=30)
         return html.fromstring(x.content)
-    except Exception as e:
+    except Exception:
         logger.exception(f"Error fetching {url}")
         raise
 

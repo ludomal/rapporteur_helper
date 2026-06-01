@@ -87,7 +87,7 @@ def get_work_program(Q, verbose: bool = False, studyGroup: int = 12, isn_sp: int
                 pass
 
             # 8th column - base document(s)
-            texts = tds[8].xpath(".//a")
+            tds[8].xpath(".//a")
 
             item["basetext"] = []
             for text in tds[7].xpath(".//a"):
@@ -101,7 +101,7 @@ def get_work_program(Q, verbose: bool = False, studyGroup: int = 12, isn_sp: int
 
             info.append(item)
 
-        except Exception as e:
+        except Exception:
             pass
 
     return info
@@ -134,7 +134,7 @@ def insert_work_program(document, info):
         replace_in_table(targetTable, "WP_Process", work_item["process"])
         replace_in_table(targetTable, "WP_Priority", work_item["priority"])
         replace_in_table(targetTable, "WP_Timing", work_item["timing"])
-        replace_in_table(targetTable, "WP_Relationship", ",\n".join([x for x in work_item["relationship"]]))
+        replace_in_table(targetTable, "WP_Relationship", ",\n".join(list(work_item["relationship"])))
         replace_in_table(targetTable, "WP_Title", work_item["title"])
         replace_in_table(targetTable, "WP_Editors", ",\n".join([x["name"] for x in work_item["editors"]]))
 

@@ -3,7 +3,6 @@ from typing import Any
 
 from docx.document import Document
 
-from ..word_docx.paragraph import replace
 from ..word_docx.tables import replace_in_table
 
 
@@ -13,16 +12,16 @@ def insert_contacts(document: Document, questionInfo: dict[str, Any]):
     # Fid the contact table
     contactTable = None
     for table in document.tables:
-        for idx, row in enumerate(table.rows):
+        for _idx, row in enumerate(table.rows):
             for cell in row.cells:
                 for paragraph in cell.paragraphs:
-                    if contactTable != None:
+                    if contactTable is not None:
                         break
                     if paragraph.text == "Contact:":
                         contactTable = table
 
     # Add contacts row if necessary (there are two in the template)
-    for i in range(0, numContacts - 2, 1):
+    for _i in range(0, numContacts - 2, 1):
         contactTable.rows[-1]._tr.addnext(copy.deepcopy(contactTable.rows[-1]._tr))
 
     if numContacts == 1:

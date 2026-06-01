@@ -1,5 +1,3 @@
-
-
 def replace_in_table(table, find, replace):
     for row in table.rows:
         for cell in row.cells:
@@ -18,16 +16,16 @@ def replace_in_table(table, find, replace):
                             paragraph._p.append(replace)
                         return True
 
-                if foundInRun == False:
-                    if find in paragraph.text:
-                        if isinstance(replace, str):
-                            paragraph.text = paragraph.text.replace(find, replace)
-                        else:
-                            pass
-                            paragraph._p.addnext(replace)
+                if not foundInRun and find in paragraph.text:
+                    if isinstance(replace, str):
+                        paragraph.text = paragraph.text.replace(find, replace)
+                    else:
+                        pass
+                        paragraph._p.addnext(replace)
 
-                        return True
+                    return True
     return False
+
 
 if __name__ == "__main__":
     pass

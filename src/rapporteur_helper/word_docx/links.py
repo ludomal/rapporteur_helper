@@ -1,6 +1,7 @@
 import docx
 from docx.document import Document
 
+
 def create_hyperlink(document: Document, text: str, url, format=["None", "bold", "italic", "hyperlink", "button"][0]):
     # Create the w:hyperlink tag and add needed values
     hyperlink = docx.oxml.shared.OxmlElement("w:hyperlink")
