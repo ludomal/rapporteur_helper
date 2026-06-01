@@ -20,6 +20,7 @@ classifiers = [
 dependencies = [
     "click>=8.2.1",
     "docxtpl>=0.20.1",
+    "lxml>=5.0.0",
     "python-docx>=1.2.0",
     "requests>=2.32.5",
 ]
