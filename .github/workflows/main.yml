@@ -51,4 +51,3 @@ jobs:
         if: ${{ matrix.python-version == '3.11' }}
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-
