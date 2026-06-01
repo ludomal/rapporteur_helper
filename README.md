@@ -2,6 +2,8 @@
 
 Generates pre-populated status reports for ITU-T Study Group 12 Rapporteurs as Word documents.
 
+**Latest reports: https://ludomal.github.io/rapporteur_helper/**
+
 Meeting details (place, dates) are automatically fetched from the ITU-T website. The tool scrapes:
 
 - Question title
