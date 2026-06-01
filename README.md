@@ -1,62 +1,71 @@
 # ITU-T Rapporteur's status report generator
 
-This project generates pre-populated status report for Rapporteurs in Study Group 12.
+Generates pre-populated status reports for ITU-T Study Group 12 Rapporteurs as Word documents.
 
-The scripts use `template.docx` as the template generating formatted word documents.
-Information fetched from the ITU-T website are:
+Meeting details (place, dates) are automatically fetched from the ITU-T website. The tool scrapes:
 
 - Question title
-- (co/associate) rapporteur(s) details
+- Rapporteur / co-rapporteur contact details
 - List of contributions
-- List of TDs
+- List of temporary documents (TDs)
 - Work programme
 
-[![Release](https://img.shields.io/github/v/release/jr2804/rapporteur-helper)](https://img.shields.io/github/v/release/jr2804/rapporteur-helper)
-[![Build status](https://img.shields.io/github/actions/workflow/status/jr2804/rapporteur-helper/main.yml?branch=main)](https://github.com/jr2804/rapporteur-helper/actions/workflows/main.yml?query=branch%3Amain)
-[![codecov](https://codecov.io/gh/jr2804/rapporteur-helper/branch/main/graph/badge.svg)](https://codecov.io/gh/jr2804/rapporteur-helper)
-[![Commit activity](https://img.shields.io/github/commit-activity/m/jr2804/rapporteur-helper)](https://img.shields.io/github/commit-activity/m/jr2804/rapporteur-helper)
-[![License](https://img.shields.io/github/license/jr2804/rapporteur-helper)](https://img.shields.io/github/license/jr2804/rapporteur-helper)
+## Generate reports via GitHub Actions (recommended)
 
-ITU-T Rapporteur's status report generator
+The easiest way to generate reports is through the GitHub Actions workflow:
 
-- **Github repository**: <https://github.com/jr2804/rapporteur-helper/>
-- **Documentation** <https://jr2804.github.io/rapporteur-helper/>
+1. Go to **Actions** → **Generate reports**
+2. Click **Run workflow**
+3. Fill in the parameters:
+   - **Questions**: which questions to generate (e.g. `1-20`, `1,2,7`, or `5`)
+   - **Study Group**: the SG number (default: `12`)
+4. Click **Run workflow**
 
-## How to use
+The workflow automatically fetches the current meeting details from the ITU-T SG page and generates one `.docx` file per question.
 
-1. Use _uv_ tool to setup virtual environment with required packages:
+Once complete, download the reports from the **Artifacts** section of the workflow run. The artifact name includes the questions and study group for traceability (e.g. `status-reports-Q1-20-SG12`).
+
+## Generate reports locally
+
+1. Install dependencies:
 
 ```shell
 uv sync
 ```
 
-2. Update variables with meeting information in `generate_reports.py`:
+2. Run the tool:
 
- * `meetingDetails`: place and date, example: `"Geneva, 18-26 January 2023"`
-
- * `meetingDate`: first day of the meeting in the format `YYMMDD`. For example, for the meeting starting January 18, 2023: `"230118"`
-
- * `add_qall`: bool flag to include or exclude Cs/TDs allocated to question "QALL"
-
-3. Execute the script
-
-```
-python generate_report.py
+```shell
+uv run rapporteur_helper
 ```
 
-Word documents for each question are generated automatically in a directory named as the meeting date, for example `./230118`.
+This generates reports for all questions (1–20) using the current meeting info from the ITU-T website.
 
+### Options
 
-## TO DO
+```
+-q, --questions TEXT        Questions: range '1-20', list '1,2,7', or single '5'
+-s, --study-group INTEGER   Study Group number (default: 12)
+-d, --meeting-date TEXT     Override meeting start date (YYMMDD)
+-p, --meeting-place TEXT    Override meeting location
+    --meeting-end-date TEXT Override meeting end date (YYMMDD)
+    --add-qall / --no-add-qall  Include QALL documents (default: False)
+-o, --output-dir PATH       Output directory (default: current directory)
+-v, --verbose               Enable verbose output
+```
 
-- Implement usage of API or (crawling websites?) to retrieve meeting information / need less redundant information
-- better replacement of text in template doc; use jinja2 templating, see: [elapouya/python-docx-template](https://github.com/elapouya/python-docx-template)
-- Add logging for better traceability instead of print statements
-- Write unit tests for critical functions
-- Implement a configuration file for easier customization of meeting parameters
-- improve template document:
-  - use bookmarks to automatically "copy" summary sections to executive summary in Annex.
+Example — generate only questions 1 and 7:
 
----
+```shell
+uv run rapporteur_helper -q "1,7" -v
+```
 
-Repository initiated with [fpgmaas/cookiecutter-uv](https://github.com/fpgmaas/cookiecutter-uv).
+Reports are saved to a directory named by the meeting start date (e.g. `./260609/`).
+
+## Development
+
+```shell
+uv sync              # install dependencies
+make check           # run linting and quality checks
+make test            # run tests
+```

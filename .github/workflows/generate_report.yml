@@ -32,5 +32,5 @@ jobs:
       - name: Upload reports
         uses: actions/upload-artifact@v4
         with:
-          name: status-reports
+          name: status-reports-Q${{ inputs.questions }}-SG${{ inputs.study-group }}
           path: "**/*status_report.docx"
