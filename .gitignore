@@ -209,7 +209,6 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
-uv.lock
 /tmp
 
 # Exclude output folders with exactly 6 digits (meeting date folders)
