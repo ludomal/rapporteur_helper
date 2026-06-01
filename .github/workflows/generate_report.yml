@@ -11,10 +11,22 @@ on:
         description: "Study Group number"
         required: true
         default: "12"
+  schedule:
+    # During meeting weeks: 12:00 and 18:00 UTC (lunch and dinner time in Geneva)
+    - cron: '0 12 * * 1-5'
+    - cron: '0 18 * * 1-5'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
 jobs:
   generate_reports:
     runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Check out
         uses: actions/checkout@v4
@@ -22,15 +34,76 @@ jobs:
       - name: Set up the environment
         uses: ./.github/actions/setup-python-env
 
+      - name: Set inputs
+        id: inputs
+        run: |
+          echo "questions=${{ inputs.questions || '1-20' }}" >> "$GITHUB_OUTPUT"
+          echo "study-group=${{ inputs.study-group || '12' }}" >> "$GITHUB_OUTPUT"
+
       - name: Generate reports
         run: |
           uv run rapporteur_helper \
-            --questions "${{ inputs.questions }}" \
-            --study-group "${{ inputs.study-group }}" \
+            --questions "${{ steps.inputs.outputs.questions }}" \
+            --study-group "${{ steps.inputs.outputs.study-group }}" \
+            --output-dir site \
             --verbose
 
-      - name: Upload reports
-        uses: actions/upload-artifact@v4
+      - name: Build index page
+        run: |
+          MEETING_INFO=$(uv run python -c "
+          from rapporteur_helper.itut.meeting import fetch_meeting_info
+          info = fetch_meeting_info(${{ steps.inputs.outputs.study-group }})
+          print(info.meeting_details)
+          ")
+          TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC')
+          SG="${{ steps.inputs.outputs.study-group }}"
+          REPORT_DIR=$(ls -d site/*/ | head -1)
+
+          cat > site/index.html << EOF
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>SG${SG} Status Reports</title>
+            <style>
+              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; max-width: 700px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+              h1 { margin-bottom: 0.2rem; }
+              .subtitle { color: #555; margin-bottom: 2rem; }
+              ul { padding-left: 1.2rem; }
+              li { margin: 0.4rem 0; }
+              a { color: #0366d6; }
+              .footer { margin-top: 2rem; color: #888; font-size: 0.85rem; border-top: 1px solid #eee; padding-top: 1rem; }
+            </style>
+          </head>
+          <body>
+            <h1>ITU-T Study Group ${SG} — Status Reports</h1>
+            <p class="subtitle">${MEETING_INFO}</p>
+            <h2>Reports</h2>
+            <ul>
+          EOF
+
+          for f in $(ls ${REPORT_DIR}Q*_status_report.docx 2>/dev/null | sort -V); do
+            BASENAME=$(basename "$f")
+            QNUM=$(echo "$BASENAME" | grep -oP 'Q\d+')
+            RELPATH=$(echo "$f" | sed 's|^site/||')
+            echo "      <li><a href=\"${RELPATH}\">${QNUM} — Status Report</a></li>" >> site/index.html
+          done
+
+          cat >> site/index.html << EOF
+            </ul>
+            <div class="footer">
+              <p>Last updated: ${TIMESTAMP}</p>
+            </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          name: status-reports-Q${{ inputs.questions }}-SG${{ inputs.study-group }}
-          path: "**/*status_report.docx"
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
