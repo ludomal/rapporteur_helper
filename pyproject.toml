@@ -1,0 +1,126 @@
+[project]
+name = "rapporteur-helper"
+version = "0.0.1"
+description = "ITU-T Rapporteur's status report generator"
+authors = [{ name = "Jan Reimes", email = "jan.reimes@gmail.com" }]
+readme = "README.md"
+keywords = ['python']
+requires-python = ">=3.13,<4.0"
+classifiers = [
+    "Intended Audience :: Developers",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = [
+    "click>=8.2.1",
+    "docxtpl>=0.20.1",
+    "lxml>=5.0.0",
+    "python-docx>=1.2.0",
+    "requests>=2.32.5",
+]
+
+[project.urls]
+Homepage = "https://jr2804.github.io/rapporteur-helper/"
+Repository = "https://github.com/jr2804/rapporteur-helper"
+Documentation = "https://jr2804.github.io/rapporteur-helper/"
+
+[dependency-groups]
+dev = [
+    "pytest>=7.2.0",
+    "pre-commit>=2.20.0",
+    "tox-uv>=1.11.3",
+    "deptry>=0.23.0",
+    "ty>=0.0.1a16",
+    "pytest-cov>=4.0.0",
+    "ruff>=0.11.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.14"]
+build-backend = "uv_build"
+
+[project.scripts]
+rapporteur_helper = "rapporteur_helper.__main__:cli"
+
+[tool.ty.environment]
+#python = "./.venv"
+#python-version = "3.13"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 160
+fix = true
+
+[tool.ruff.lint]
+select = [
+    # flake8-2020
+    "YTT",
+    # flake8-bandit
+    "S",
+    # flake8-bugbear
+    "B",
+    # flake8-builtins
+    "A",
+    # flake8-comprehensions
+    "C4",
+    # flake8-debugger
+    "T10",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+    # mccabe
+    "C90",
+    # pycodestyle
+    "E", "W",
+    # pyflakes
+    "F",
+    # pygrep-hooks
+    "PGH",
+    # pyupgrade
+    "UP",
+    # ruff
+    "RUF",
+    # tryceratops
+    "TRY",
+]
+ignore = [
+    # LineTooLong
+    "E501",
+    # DoNotAssignLambda
+    "E731",
+    # Too complex
+    "C901",
+    # Long exception messages
+    "TRY003",
+    # Redundant exception in logging.exception
+    "TRY401",
+    # Shadowing builtins in function args
+    "A002",
+    # try-except-pass
+    "S110",
+    # Unused loop variable
+    "B007",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.format]
+preview = true
+
+[tool.coverage.report]
+skip_empty = true
+
+[tool.coverage.run]
+branch = true
+source = ["src"]

@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Clean, Build and Install Package",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-Command",
+				"Write-Host 'Uninstalling previous builds...' -ForegroundColor Red; uv tool uninstall rapporteur_helper; Write-Host 'Cleaning previous builds...' -ForegroundColor Yellow; if (Test-Path 'dist') { Remove-Item -Recurse -Force 'dist' }; Write-Host 'Building package...' -ForegroundColor Green; uv build; if ($LASTEXITCODE -eq 0) { Write-Host 'Installing package tool...' -ForegroundColor Blue; uv tool install --force .; Write-Host 'Package installed successfully!' -ForegroundColor Green } else { Write-Host 'Build failed!' -ForegroundColor Red; exit 1 }"
+			],
+			"problemMatcher": [],
+			"group": "build"
+		}
+	]
+}
