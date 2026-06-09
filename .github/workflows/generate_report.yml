@@ -13,8 +13,8 @@ on:
         default: "12"
   schedule:
     # During meeting weeks: 12:00 and 18:00 UTC (lunch and dinner time in Geneva)
-    - cron: '0 12 * * 1-5'
-    - cron: '0 18 * * 1-5'
+    - cron: '0 10 * * 1-5'
+    - cron: '0 16 * * 1-5'
 
 permissions:
   contents: read
