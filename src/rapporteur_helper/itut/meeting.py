@@ -61,17 +61,24 @@ def fetch_meeting_info(study_group: int = 12, study_period: str = "2025-2028") -
     url = get_sg_page_url(study_group, study_period)
     tree = get_html_tree(url)
 
-    # The meeting info is in a bold element after the "Meeting in Focus" heading
-    # Look for bold/strong text matching the pattern "Place, D-D Month YYYY"
-    bold_texts = tree.xpath("//strong/text() | //b/text()")
-
     # Pattern: "Geneva, 9-17 June 2026" or "Geneva, 28 November - 6 December 2025"
     # Match hyphen or en-dash as separator
     dash = r"[-\u2013]"
     same_month = re.compile(rf"^(.+),\s+(\d{{1,2}})\s*{dash}\s*(\d{{1,2}})\s+(\w+)\s+(\d{{4}})$")
     cross_month = re.compile(rf"^(.+),\s+(\d{{1,2}})\s+(\w+)\s*{dash}\s*(\d{{1,2}})\s+(\w+)\s+(\d{{4}})$")
 
-    for text in bold_texts:
+    # Try multiple XPath strategies to find the meeting date text
+    candidates = []
+    # Strategy 1: direct text in bold/strong elements
+    candidates.extend(tree.xpath("//strong/text() | //b/text()"))
+    # Strategy 2: full text_content() of bold/strong elements (handles nested spans)
+    for el in tree.xpath("//strong | //b"):
+        candidates.append(el.text_content())
+    # Strategy 3: look in spans and paragraphs near "Meeting in Focus"
+    for el in tree.xpath("//*[contains(text(), 'Meeting in Focus')]/following-sibling::*//strong | //*[contains(text(), 'Meeting in Focus')]/following-sibling::*//b | //*[contains(text(), 'Meeting in Focus')]/following::strong | //*[contains(text(), 'Meeting in Focus')]/following::b"):
+        candidates.append(el.text_content())
+
+    for text in candidates:
         text = text.strip()
         if m := same_month.match(text):
             place, day1, day2, month, year = m.groups()
@@ -88,4 +95,4 @@ def fetch_meeting_info(study_group: int = 12, study_period: str = "2025-2028") -
                 end_date=date(int(year), MONTHS[month2], int(day2)),
             )
 
-    raise ValueError(f"Could not find 'Meeting in Focus' details on {url}")
+    raise ValueError(f"Could not find 'Meeting in Focus' details on {url}. Found {len(candidates)} bold text candidates: {candidates[:10]}")
